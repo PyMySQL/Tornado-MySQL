@@ -73,7 +73,7 @@ class Pool(object):
             return fut
 
         # Open new connection
-        if self.max_open and self._opened_conns < self.max_open:
+        if self.max_open == 0 or self._opened_conns < self.max_open:
             self._opened_conns += 1
             _debug("Creating new connection:", self.stat())
             return connect(**self.connect_kwargs)
