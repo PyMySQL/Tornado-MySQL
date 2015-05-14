@@ -32,9 +32,9 @@ class Pool(object):
 
     def __init__(self,
                  connect_kwargs,
-                 max_idle_connections=1,
+                 max_idle_connections,
+                 max_open_connections,
                  max_recycle_sec=3600,
-                 max_open_connections=1,
                  io_loop=None,
                  ):
         """
@@ -48,9 +48,8 @@ class Pool(object):
         self.io_loop = io_loop or IOLoop.current()
         self.connect_kwargs = connect_kwargs
         self.max_idle = max_idle_connections
-        if max_open_connections <= 0:
-            POOLLOGGER.error("Initializing with 0 open connections! Setting to at least one!")
-            self.max_open = 1
+        if max_open_connections <= 0 or max_idle_connections <= 0:
+            raise ValueError("max idle or open connections not initialized properly")
         else:
             self.max_open = max_open_connections
         self.max_recycle_sec = max_recycle_sec
