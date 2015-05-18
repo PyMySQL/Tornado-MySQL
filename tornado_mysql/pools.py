@@ -14,8 +14,6 @@ from tornado_mysql.connections import Connection
 
 DEBUG = False
 
-POOLLOGGER = logging.getLogger("Tornado-MySQL")
-
 def _debug(*msg):
     if DEBUG:
         print(*msg)
@@ -32,8 +30,8 @@ class Pool(object):
 
     def __init__(self,
                  connect_kwargs,
-                 max_idle_connections,
                  max_open_connections,
+                 max_idle_connections=0,
                  max_recycle_sec=3600,
                  io_loop=None,
                  ):
@@ -48,10 +46,8 @@ class Pool(object):
         self.io_loop = io_loop or IOLoop.current()
         self.connect_kwargs = connect_kwargs
         self.max_idle = max_idle_connections
-        if max_open_connections <= 0 or max_idle_connections <= 0:
+        if max_open_connections <= 0:
             raise ValueError("max idle or open connections not initialized properly")
-        else:
-            self.max_open = max_open_connections
         self.max_recycle_sec = max_recycle_sec
 
         self._opened_conns = 0
