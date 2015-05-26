@@ -58,7 +58,7 @@ class Pool(object):
         """Returns (opened connections, free connections, waiters)"""
         return (self._opened_conns, len(self._free_conn), len(self._waitings))
 
-    def _get_conn(self):
+    def _get_conn(self):  # -> Future[connection]
         now = self.io_loop.time()
 
         # Try to reuse in free pool
@@ -76,12 +76,18 @@ class Pool(object):
         if self.max_open == 0 or self._opened_conns < self.max_open:
             self._opened_conns += 1
             _debug("Creating new connection:", self.stat())
-            return connect(**self.connect_kwargs)
+            fut = connect(**self.connect_kwargs)
+            fut.add_done_callback(self._on_connect)  # self._opened_conns -=1 on exception
+            return fut
 
         # Wait to other connection is released.
         fut = Future()
         self._waitings.append(fut)
         return fut
+
+    def _on_connect(self, fut):
+        if fut.exception():
+            self._opened_conns -= 1
 
     def _put_conn(self, conn):
         if (len(self._free_conn) < self.max_idle and
