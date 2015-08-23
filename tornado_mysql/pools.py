@@ -169,7 +169,7 @@ class Transaction(object):
         self._pool = self._conn = None
 
     @coroutine
-    def execute(self, query, args):
+    def execute(self, query, args=None):
         """
         :return: Future[Cursor]
         :rtype: Future
