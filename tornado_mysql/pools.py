@@ -110,18 +110,19 @@ class Pool(object):
         log.debug("Connection closed: %s", self.stat())
 
     @coroutine
-    def execute(self, query, params=None):
+    def execute(self, query, params=None, cursor=None):
         """Execute query in pool.
 
         Returns future yielding closed cursor.
         You can get rows, lastrowid, etc from the cursor.
+        :param cursor: cursor class(Cursor, DictCursor. etc.)
 
         :return: Future of cursor
         :rtype: Future
         """
         conn = yield self._get_conn()
         try:
-            cur = conn.cursor()
+            cur = conn.cursor(cursor)
             yield cur.execute(query, params)
             yield cur.close()
         except:
