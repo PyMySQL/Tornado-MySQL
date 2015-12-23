@@ -72,7 +72,7 @@ UNSIGNED_INT64_COLUMN = 254
 
 DEFAULT_CHARSET = 'latin1'
 
-MAX_PACKET_LEN = 2**24-1
+MAX_PACKET_LEN = 2**24 - 1
 
 
 def dump_packet(data):
@@ -93,7 +93,7 @@ def dump_packet(data):
         print("-" * 88)
     except ValueError:
         pass
-    dump_data = [data[i:i+16] for i in range_type(0, min(len(data), 256), 16)]
+    dump_data = [data[i:i + 16] for i in range_type(0, min(len(data), 256), 16)]
     for d in dump_data:
         print(' '.join(map(lambda x: "{:02X}".format(byte2int(x)), d)) +
               '   ' * (16 - len(d)) + ' ' * 2 +
@@ -105,7 +105,8 @@ def dump_packet(data):
 def _scramble(password, message):
     if not password:
         return b'\0'
-    if DEBUG: print('password=' + password)
+    if DEBUG:
+        print('password=' + password)
     stage1 = sha_new(password).digest()
     stage2 = sha_new(stage1).digest()
     s = sha_new()
@@ -119,8 +120,8 @@ def _my_crypt(message1, message2):
     length = len(message1)
     result = struct.pack('B', length)
     for i in range_type(length):
-        x = (struct.unpack('B', message1[i:i+1])[0] ^
-             struct.unpack('B', message2[i:i+1])[0])
+        x = (struct.unpack('B', message1[i:i + 1])[0] ^
+             struct.unpack('B', message2[i:i + 1])[0])
         result += struct.pack('B', x)
     return result
 
@@ -129,6 +130,7 @@ SCRAMBLE_LENGTH_323 = 8
 
 
 class RandStruct_323(object):
+
     def __init__(self, seed1, seed2):
         self.max_value = 0x3FFFFFFF
         self.seed1 = seed1 % self.max_value
@@ -165,11 +167,11 @@ def _hash_password_323(password):
     nr2 = 0x12345671
 
     for c in [byte2int(x) for x in password if x not in (' ', '\t')]:
-        nr^= (((nr & 63)+add)*c)+ (nr << 8) & 0xFFFFFFFF
-        nr2= (nr2 + ((nr2 << 8) ^ nr)) & 0xFFFFFFFF
-        add= (add + c) & 0xFFFFFFFF
+        nr ^= (((nr & 63) + add) * c) + (nr << 8) & 0xFFFFFFFF
+        nr2 = (nr2 + ((nr2 << 8) ^ nr)) & 0xFFFFFFFF
+        add = (add + c) & 0xFFFFFFFF
 
-    r1 = nr & ((1 << 31) - 1) # kill sign bits
+    r1 = nr & ((1 << 31) - 1)  # kill sign bits
     r2 = nr2 & ((1 << 31) - 1)
 
     # pack
@@ -196,7 +198,7 @@ class MysqlPacket(object):
 
     def read(self, size):
         """Read the first 'size' bytes in packet and advance cursor past them."""
-        result = self._data[self._position:(self._position+size)]
+        result = self._data[self._position:(self._position + size)]
         if len(result) != size:
             error = ('Result length not requested length:\n'
                      'Expected=%s.  Actual=%s.  Position: %s.  Data Length: %s'
@@ -240,7 +242,7 @@ class MysqlPacket(object):
         No error checking is done.  If requesting outside end of buffer
         an empty string (or string shorter than 'length') may be returned!
         """
-        return self._data[position:(position+length)]
+        return self._data[position:(position + length)]
 
     if PY2:
         def read_uint8(self):
@@ -333,7 +335,8 @@ class MysqlPacket(object):
             self.rewind()
             self.advance(1)  # field_count == error (we already know that)
             errno = self.read_uint16()
-            if DEBUG: print("errno =", errno)
+            if DEBUG:
+                print("errno =", errno)
             raise_mysql_exception(self._data)
 
     def dump(self):
@@ -430,7 +433,8 @@ class EOFPacketWrapper(object):
 
         self.packet = from_packet
         self.warning_count, self.server_status = self.packet.read_struct('<xhh')
-        if DEBUG: print("server_status=", self.server_status)
+        if DEBUG:
+            print("server_status=", self.server_status)
         self.has_next = self.server_status & SERVER_STATUS.SERVER_MORE_RESULTS_EXISTS
 
     def __getattr__(self, key):
@@ -452,7 +456,8 @@ class LoadLocalPacketWrapper(object):
 
         self.packet = from_packet
         self.filename = self.packet.get_all_data()[1:]
-        if DEBUG: print("filename=", self.filename)
+        if DEBUG:
+            print("filename=", self.filename)
 
     def __getattr__(self, key):
         return getattr(self.packet, key)
@@ -775,7 +780,7 @@ class Connection(object):
 
     @gen.coroutine
     def connect(self):
-        #TODO: Set close callback
+        # TODO: Set close callback
         #raise OperationalError(2006, "MySQL server has gone away (%r)" % (e,))
         sock = None
         try:
@@ -789,9 +794,14 @@ class Connection(object):
                 addr = (self.host, self.port)
                 self.host_info = "socket %s:%d" % (self.host, self.port)
             stream = iostream.IOStream(sock)
-            # TODO: handle connect_timeout
+
+            if self.connect_timeout:
+                sock.settimeout(self.connect_timeout)
+
             yield stream.connect(addr)
+
             self._stream = stream
+            sock.settimeout(0.0)  # restore default
 
             if self.no_delay:
                 stream.set_nodelay(True)
@@ -831,13 +841,15 @@ class Connection(object):
         try:
             while True:
                 packet_header = yield self._stream.read_bytes(4)
-                if DEBUG: dump_packet(packet_header)
+                if DEBUG:
+                    dump_packet(packet_header)
 
                 btrl, btrh, packet_number = struct.unpack('<HBB', packet_header)
                 bytes_to_read = btrl + (btrh << 16)
-                #TODO: check sequence id
+                # TODO: check sequence id
                 recv_data = yield self._stream.read_bytes(bytes_to_read)
-                if DEBUG: dump_packet(recv_data)
+                if DEBUG:
+                    dump_packet(recv_data)
                 buff += recv_data
                 if bytes_to_read < MAX_PACKET_LEN:
                     break
@@ -891,20 +903,22 @@ class Connection(object):
         chunk_size = min(MAX_PACKET_LEN, len(sql) + 1)  # +1 is for command
 
         prelude = struct.pack('<iB', chunk_size, command)
-        self._write_bytes(prelude + sql[:chunk_size-1])
-        if DEBUG: dump_packet(prelude + sql)
+        self._write_bytes(prelude + sql[:chunk_size - 1])
+        if DEBUG:
+            dump_packet(prelude + sql)
 
         if chunk_size < MAX_PACKET_LEN:
             return
 
         seq_id = 1
-        sql = sql[chunk_size-1:]
+        sql = sql[chunk_size - 1:]
         while True:
             chunk_size = min(MAX_PACKET_LEN, len(sql))
             prelude = struct.pack('<i', chunk_size)[:3]
-            data = prelude + int2byte(seq_id%256) + sql[:chunk_size]
+            data = prelude + int2byte(seq_id % 256) + sql[:chunk_size]
             self._write_bytes(data)
-            if DEBUG: dump_packet(data)
+            if DEBUG:
+                dump_packet(data)
             sql = sql[chunk_size:]
             if not sql and chunk_size < MAX_PACKET_LEN:
                 break
@@ -931,7 +945,8 @@ class Connection(object):
             data = pack_int24(len(data_init)) + int2byte(next_packet) + data_init
             next_packet += 1
 
-            if DEBUG: dump_packet(data)
+            if DEBUG:
+                dump_packet(data)
 
             yield self._write_bytes(data)
             yield self._stream.start_tls(
@@ -953,7 +968,8 @@ class Connection(object):
         data = pack_int24(len(data)) + int2byte(next_packet) + data
         next_packet += 2
 
-        if DEBUG: dump_packet(data)
+        if DEBUG:
+            dump_packet(data)
 
         self._write_bytes(data)
 
@@ -988,34 +1004,37 @@ class Connection(object):
         packet = yield self._read_packet()
         data = packet.get_all_data()
 
-        if DEBUG: dump_packet(data)
-        self.protocol_version = byte2int(data[i:i+1])
+        if DEBUG:
+            dump_packet(data)
+        self.protocol_version = byte2int(data[i:i + 1])
         i += 1
 
         server_end = data.find(int2byte(0), i)
         self.server_version = data[i:server_end].decode('latin1')
         i = server_end + 1
 
-        self.server_thread_id = struct.unpack('<I', data[i:i+4])
+        self.server_thread_id = struct.unpack('<I', data[i:i + 4])
         i += 4
 
-        self.salt = data[i:i+8]
+        self.salt = data[i:i + 8]
         i += 9  # 8 + 1(filler)
 
-        self.server_capabilities = struct.unpack('<H', data[i:i+2])[0]
+        self.server_capabilities = struct.unpack('<H', data[i:i + 2])[0]
         i += 2
 
         if len(data) >= i + 6:
-            lang, stat, cap_h, salt_len = struct.unpack('<BHHB', data[i:i+6])
+            lang, stat, cap_h, salt_len = struct.unpack('<BHHB', data[i:i + 6])
             i += 6
             self.server_language = lang
             self.server_charset = charset_by_id(lang).name
 
             self.server_status = stat
-            if DEBUG: print("server_status: %x" % stat)
+            if DEBUG:
+                print("server_status: %x" % stat)
 
             self.server_capabilities |= cap_h << 16
-            if DEBUG: print("salt_len:", salt_len)
+            if DEBUG:
+                print("salt_len:", salt_len)
             salt_len = max(12, salt_len - 9)
 
         # reserved
@@ -1023,7 +1042,7 @@ class Connection(object):
 
         if len(data) >= i + salt_len:
             # salt_len includes auth_plugin_data_part_1 and filler
-            self.salt += data[i:i+salt_len]
+            self.salt += data[i:i + salt_len]
         # TODO: AUTH PLUGIN NAME may appeare here.
 
     def get_server_info(self):
@@ -1171,7 +1190,8 @@ class MySQLResult(object):
             if data is not None:
                 if encoding is not None:
                     data = data.decode(encoding)
-                if DEBUG: print("DEBUG: DATA = ", data)
+                if DEBUG:
+                    print("DEBUG: DATA = ", data)
                 if converter is not None:
                     data = converter(data)
             row.append(data)
@@ -1204,7 +1224,8 @@ class MySQLResult(object):
             converter = self.connection.decoders.get(field_type)
             if converter is through:
                 converter = None
-            if DEBUG: print("DEBUG: field={}, converter={}".format(field, converter))
+            if DEBUG:
+                print("DEBUG: field={}, converter={}".format(field, converter))
             self.converters.append((encoding, converter))
 
         eof_packet = yield self.connection._read_packet()
@@ -1213,6 +1234,7 @@ class MySQLResult(object):
 
 
 class LoadLocalFile(object):
+
     def __init__(self, filename, connection):
         self.filename = filename
         self.connection = connection
