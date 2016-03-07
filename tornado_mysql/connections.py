@@ -591,7 +591,10 @@ class Connection(object):
         if use_unicode is not None:
             self.use_unicode = use_unicode
 
-        self.encoding = charset_by_name(self.charset).encoding
+        if charset_by_name(self.charset):
+            self.encoding = charset_by_name(self.charset).encoding
+        else:
+            raise ValueError('Charset %s not in charsets' % self.charset)
 
         client_flag |= CLIENT.CAPABILITIES | CLIENT.MULTI_STATEMENTS
         if self.db:
