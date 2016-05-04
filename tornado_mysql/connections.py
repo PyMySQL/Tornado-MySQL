@@ -105,7 +105,7 @@ def dump_packet(data):
 def _scramble(password, message):
     if not password:
         return b'\0'
-    if DEBUG: print('password=' + password)
+    if DEBUG: print('password=' + str(password))
     stage1 = sha_new(password).digest()
     stage2 = sha_new(stage1).digest()
     s = sha_new()
@@ -1064,7 +1064,7 @@ class MySQLResult(object):
             if first_packet.is_ok_packet():
                 self._read_ok_packet(first_packet)
             elif first_packet.is_load_local_packet():
-                self._read_load_local_packet(first_packet)
+                yield self._read_load_local_packet(first_packet)
             else:
                 yield self._read_result_packet(first_packet)
         finally:
@@ -1077,6 +1077,10 @@ class MySQLResult(object):
 
         if first_packet.is_ok_packet():
             self._read_ok_packet(first_packet)
+            self.unbuffered_active = False
+            self.connection = None
+        elif first_packet.is_load_local_packet():
+            yield self._read_load_local_packet(first_packet)
             self.unbuffered_active = False
             self.connection = None
         else:
@@ -1097,12 +1101,13 @@ class MySQLResult(object):
         self.message = ok_packet.message
         self.has_next = ok_packet.has_next
 
+    @gen.coroutine
     def _read_load_local_packet(self, first_packet):
         load_packet = LoadLocalPacketWrapper(first_packet)
         sender = LoadLocalFile(load_packet.filename, self.connection)
         sender.send_data()
 
-        ok_packet = self.connection._read_packet()
+        ok_packet = yield self.connection._read_packet()
         if not ok_packet.is_ok_packet():
             raise OperationalError(2014, "Commands Out of Sync")
         self._read_ok_packet(ok_packet)
@@ -1219,7 +1224,7 @@ class LoadLocalFile(object):
 
     def send_data(self):
         """Send data packets from the local file to the server"""
-        if not self.connection.socket:
+        if not self.connection._stream:
             raise InterfaceError("(0, '')")
 
         # sequence id is 2 as we already sent a query packet
