@@ -847,8 +847,9 @@ class Connection(object):
         packet.check_error()
         raise gen.Return(packet)
 
+    @gen.coroutine
     def _write_bytes(self, data):
-        return self._stream.write(data)
+        yield self._stream.write(data)
 
     @gen.coroutine
     def _read_query_result(self, unbuffered=False):
@@ -891,7 +892,7 @@ class Connection(object):
         chunk_size = min(MAX_PACKET_LEN, len(sql) + 1)  # +1 is for command
 
         prelude = struct.pack('<iB', chunk_size, command)
-        self._write_bytes(prelude + sql[:chunk_size-1])
+        yield self._write_bytes(prelude + sql[:chunk_size-1])
         if DEBUG: dump_packet(prelude + sql)
 
         if chunk_size < MAX_PACKET_LEN:
@@ -903,7 +904,7 @@ class Connection(object):
             chunk_size = min(MAX_PACKET_LEN, len(sql))
             prelude = struct.pack('<i', chunk_size)[:3]
             data = prelude + int2byte(seq_id%256) + sql[:chunk_size]
-            self._write_bytes(data)
+            yield self._write_bytes(data)
             if DEBUG: dump_packet(data)
             sql = sql[chunk_size:]
             if not sql and chunk_size < MAX_PACKET_LEN:
@@ -955,7 +956,7 @@ class Connection(object):
 
         if DEBUG: dump_packet(data)
 
-        self._write_bytes(data)
+        yield self._write_bytes(data)
 
         auth_packet = yield self._read_packet()
 
@@ -966,7 +967,7 @@ class Connection(object):
             # send legacy handshake
             data = _scramble_323(self.password.encode('latin1'), self.salt) + b'\0'
             data = pack_int24(len(data)) + int2byte(next_packet) + data
-            self._write_bytes(data)
+            yield self._write_bytes(data)
             auth_packet = self._read_packet()
 
     # _mysql support
@@ -1105,7 +1106,7 @@ class MySQLResult(object):
     def _read_load_local_packet(self, first_packet):
         load_packet = LoadLocalPacketWrapper(first_packet)
         sender = LoadLocalFile(load_packet.filename, self.connection)
-        sender.send_data()
+        yield sender.send_data()
 
         ok_packet = yield self.connection._read_packet()
         if not ok_packet.is_ok_packet():
@@ -1221,35 +1222,35 @@ class LoadLocalFile(object):
     def __init__(self, filename, connection):
         self.filename = filename
         self.connection = connection
+        self.seq_id = 1
 
+    @gen.coroutine
+    def handle_chunk(self, chunk):
+        self.seq_id = (self.seq_id + 1) % 256
+        if not chunk:
+            # send the empty packet to signify we are done sending data
+            packet = struct.pack('<i', 0)[:3] + int2byte(self.seq_id)
+            yield self.connection._write_bytes(packet)
+        else:
+            packet = struct.pack('<i', len(chunk))[:3] + int2byte(self.seq_id)
+            format_str = '!{0}s'.format(len(chunk))
+            packet += struct.pack(format_str, chunk)
+            yield self.connection._write_bytes(packet)
+
+    @gen.coroutine
     def send_data(self):
         """Send data packets from the local file to the server"""
         if not self.connection._stream:
             raise InterfaceError("(0, '')")
 
-        # sequence id is 2 as we already sent a query packet
-        seq_id = 2
         try:
-            with open(self.filename, 'rb') as open_file:
-                chunk_size = MAX_PACKET_LEN
-                prelude = b""
-                packet = b""
-                packet_size = 0
-
-                while True:
-                    chunk = open_file.read(chunk_size)
-                    if not chunk:
-                        break
-                    packet = struct.pack('<i', len(chunk))[:3] + int2byte(seq_id)
-                    format_str = '!{0}s'.format(len(chunk))
-                    packet += struct.pack(format_str, chunk)
-                    self.connection._write_bytes(packet)
-                    seq_id += 1
-        except IOError:
+            fd = os.open(self.filename, os.O_RDONLY) # O_NONBLOCK applied automatically
+        except OSError:
+            yield self.handle_chunk(None)
             raise OperationalError(1017, "Can't find file '{0}'".format(self.filename))
-        finally:
-            # send the empty packet to signify we are done sending data
-            packet = struct.pack('<i', 0)[:3] + int2byte(seq_id)
-            self.connection._write_bytes(packet)
+        else:
+            stream = iostream.PipeIOStream(fd, max_buffer_size=MAX_PACKET_LEN)
+            stream.read_until_close(streaming_callback=self.handle_chunk, callback=self.handle_chunk)
+            stream.close()
 
 # g:khuno_ignore='E226,E301,E701'
