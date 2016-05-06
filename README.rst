@@ -9,6 +9,15 @@ Tornado-MySQL
 
 This package contains a fork of PyMySQL supporting Tornado.
 
+
+WARNING
+-------
+
+This library is experimental.  Don't use for production unless you can fix problem yourself.
+
+If you think async is efficient, you're wrong.  You shoud try thread before this.
+See also: http://techspot.zzzeek.org/2015/02/15/asynchronous-python-and-databases/
+
 Example
 -------
 
