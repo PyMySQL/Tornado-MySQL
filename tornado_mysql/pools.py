@@ -133,6 +133,23 @@ class Pool(object):
         raise Return(cur)
 
     @coroutine
+    def callproc(self, procname, params=None, cursor=None):
+        """Calls stored procedure in pool.
+        :param procname: stored procedure name
+        :param cursor: cursor class(Cursor, DictCursor. etc.)
+        """
+        conn = yield self._get_conn()
+        try:
+            cur = conn.cursor(cursor)
+            yield cur.execute(query, params)
+            yield cur.close()
+        except:
+            self._close_conn(conn)
+            raise
+        else:
+            self._put_conn(conn)
+
+    @coroutine
     def begin(self):
         """Start transaction
 
