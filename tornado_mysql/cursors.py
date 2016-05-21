@@ -230,7 +230,7 @@ class Cursor(object):
                                        for i in range_type(len(args))]))
         yield self._query(q)
         self._executed = q
-        yield gen.Return(args)
+        raise gen.Return(args)
 
     def fetchone(self):
         ''' Fetch the next row '''
