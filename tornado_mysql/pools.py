@@ -141,7 +141,7 @@ class Pool(object):
         conn = yield self._get_conn()
         try:
             cur = conn.cursor(cursor)
-            yield cur.execute(query, params)
+            yield cur.callproc(procname, params)
             yield cur.close()
         except:
             self._close_conn(conn)
