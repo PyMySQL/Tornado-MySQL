@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="Tornado-MySQL",
-    version="0.5.1",
+    version="0.5.2",
     url='https://github.com/PyMySQL/Tornado-MySQL',
     author='INADA Naoki',
     author_email='songofacandy@gmail.com',
