@@ -7,6 +7,9 @@ python:
   - "2.7"
   - "pypy"
 
+env:
+  - PYTHONIOENCODING=utf-8
+
 install:
     - pip install -U tornado
 
