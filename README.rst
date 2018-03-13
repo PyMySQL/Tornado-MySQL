@@ -13,9 +13,9 @@ This package contains a fork of PyMySQL supporting Tornado.
 WARNING
 -------
 
-This library is experimental.  Don't use for production unless you can fix problem yourself.
+This library is experimental and unmaintained.  Don't use for production unless you can fix problem yourself.
 
-If you think async is efficient, you're wrong.  You shoud try thread before this.
+If you think async is efficient, you're wrong.  You shoud try thread pool before this.
 See also: http://techspot.zzzeek.org/2015/02/15/asynchronous-python-and-databases/
 
 I don't have motivation to maintain this library.  I won't add new features.  **Please don't send feature request.**
@@ -23,6 +23,8 @@ I'm very lazy about fix bugs.  **Don't expect bugs are fixed when you want**.
 
 Instead, you should use your time and energy to port your project to asyncio and newest Python 3.
 Please don't pay your time for this project.
+
+You can use aio-libs/aiomysql or ``run_in_executor()`` in asyncio.
 
 
 Example
