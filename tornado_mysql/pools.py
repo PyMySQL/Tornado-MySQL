@@ -3,6 +3,7 @@ from __future__ import absolute_import, division, print_function
 
 from collections import deque
 import warnings
+import logging
 
 from tornado.ioloop import IOLoop
 from tornado.gen import coroutine, Return
@@ -12,12 +13,7 @@ from tornado_mysql import connect
 from tornado_mysql.connections import Connection
 
 
-DEBUG = False
-
-
-def _debug(*msg):
-    if DEBUG:
-        print(*msg)
+log = logging.getLogger("tornado_mysql.pools")
 
 
 class Pool(object):
@@ -67,7 +63,7 @@ class Pool(object):
             if now - conn.connected_time > self.max_recycle_sec:
                 self._close_async(conn)
                 continue
-            _debug("Reusing connection from pool:", self.stat())
+            log.debug("Reusing connection from pool: %s", self.stat())
             fut = Future()
             fut.set_result(conn)
             return fut
@@ -75,7 +71,7 @@ class Pool(object):
         # Open new connection
         if self.max_open == 0 or self._opened_conns < self.max_open:
             self._opened_conns += 1
-            _debug("Creating new connection:", self.stat())
+            log.debug("Creating new connection: %s", self.stat())
             fut = connect(**self.connect_kwargs)
             fut.add_done_callback(self._on_connect)  # self._opened_conns -=1 on exception
             return fut
@@ -95,10 +91,10 @@ class Pool(object):
             if self._waitings:
                 fut = self._waitings.popleft()
                 fut.set_result(conn)
-                _debug("Passing returned connection to waiter:", self.stat())
+                log.debug("Passing returned connection to waiter: %s", self.stat())
             else:
                 self._free_conn.append(conn)
-                _debug("Add conn to free pool:", self.stat())
+                log.debug("Add conn to free pool: %s", self.stat())
         else:
             self._close_async(conn)
 
@@ -117,21 +113,22 @@ class Pool(object):
             self.io_loop.add_future(cf, callback=lambda f: fut.set_result(conn))
         else:
             self._opened_conns -= 1
-        _debug("Connection closed:", self.stat())
+        log.debug("Connection closed: %s", self.stat())
 
     @coroutine
-    def execute(self, query, params=None):
+    def execute(self, query, params=None, cursor=None):
         """Execute query in pool.
 
         Returns future yielding closed cursor.
         You can get rows, lastrowid, etc from the cursor.
+        :param cursor: cursor class(Cursor, DictCursor. etc.)
 
         :return: Future of cursor
         :rtype: Future
         """
         conn = yield self._get_conn()
         try:
-            cur = conn.cursor()
+            cur = conn.cursor(cursor)
             yield cur.execute(query, params)
             yield cur.close()
         except:
@@ -175,7 +172,7 @@ class Transaction(object):
         self._pool = self._conn = None
 
     @coroutine
-    def execute(self, query, args):
+    def execute(self, query, args=None):
         """
         :return: Future[Cursor]
         :rtype: Future
@@ -200,4 +197,5 @@ class Transaction(object):
     def __del__(self):
         if self._pool is not None:
             warnings.warn("Transaction has not committed or rollbacked.")
+            log.warn("Transaction has not committed or rollbacked.")
             self._pool._close_conn(self._conn)

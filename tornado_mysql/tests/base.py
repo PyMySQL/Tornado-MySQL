@@ -22,7 +22,7 @@ class PyMySQLTestCase(AsyncTestCase):
     else:
         databases = [
             {"host":"localhost","user":"root",
-             "passwd":"","db":"test_pymysql", "use_unicode": True, 'local_infile': True},
+             "passwd":"","db":"test_pymysql", "use_unicode": True},
             {"host":"localhost","user":"root","passwd":"","db":"test_pymysql2"}]
 
     @gen.coroutine

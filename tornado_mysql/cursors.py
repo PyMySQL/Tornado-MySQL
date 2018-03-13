@@ -230,7 +230,7 @@ class Cursor(object):
                                        for i in range_type(len(args))]))
         yield self._query(q)
         self._executed = q
-        yield gen.Return(args)
+        raise gen.Return(args)
 
     def fetchone(self):
         ''' Fetch the next row '''
@@ -302,7 +302,10 @@ class Cursor(object):
     def _show_warnings(self, conn):
         ws = yield conn.show_warnings()
         for w in ws:
-            warnings.warn(w[-1], err.Warning, 4)
+            msg = w[-1]
+            if PY2 and isinstance(msg, unicode):
+                msg = msg.encode('utf-8', 'replace')
+            warnings.warn(msg, err.Warning, 4)
 
     def __iter__(self):
         return iter(self.fetchone, None)
