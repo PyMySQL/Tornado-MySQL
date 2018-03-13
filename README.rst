@@ -18,10 +18,11 @@ This library is experimental.  Don't use for production unless you can fix probl
 If you think async is efficient, you're wrong.  You shoud try thread before this.
 See also: http://techspot.zzzeek.org/2015/02/15/asynchronous-python-and-databases/
 
-I don't have motivation to improve this library.  I only fix bugs.  **Please don't send feature request.**
+I don't have motivation to maintain this library.  I won't add new features.  **Please don't send feature request.**
+I'm very lazy about fix bugs.  **Don't expect bugs are fixed when you want**.
 
-Instead, you should your time and energy to port your project to asyncio and newest Python 3.
-Please don't pay your time to **adding** new feature to this project.
+Instead, you should use your time and energy to port your project to asyncio and newest Python 3.
+Please don't pay your time for this project.
 
 
 Example
