@@ -123,7 +123,7 @@ def convert_datetime(obj):
         usecs = '0'
         if '.' in hms:
             hms, usecs = hms.split('.')
-        usecs = float('0.' + usecs) * 1e6
+        usecs = round(float('0.' + usecs) * 1e6)
         return datetime.datetime(*[ int(x) for x in ymd.split('-')+hms.split(':')+[usecs] ])
     except ValueError:
         return convert_date(obj)
