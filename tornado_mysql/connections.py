@@ -981,7 +981,10 @@ class Connection(object):
             lang, stat, cap_h, salt_len = struct.unpack('<BHHB', data[i:i+6])
             i += 6
             self.server_language = lang
-            self.server_charset = charset_by_id(lang).name
+            try:
+                self.server_charset = charset_by_id(lang).name
+            except KeyError:
+                self.server_charset = None
 
             self.server_status = stat
             if DEBUG: print("server_status: %x" % stat)
